@@ -1,0 +1,57 @@
+const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { Server } = require("socket.io");
+
+const app = express();
+const server = http.createServer(app);
+
+app.use(cors());
+app.use(express.json());
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "voice-clone-detector-backend",
+    mode: "mock",
+  });
+});
+
+io.on("connection", (socket) => {
+  console.log(`Client connected: ${socket.id}`);
+
+  socket.emit("connected", {
+    message: "Connected to real-time voice analysis server",
+  });
+
+  socket.on("analyze_audio", (audioChunk) => {
+    console.log(`Audio chunk received from ${socket.id}`);
+
+    const result = {
+      label: "VERIFY",
+      confidence: 0.72,
+      riskScore: 72,
+      message: "Audio needs additional verification.",
+      timestamp: new Date().toISOString(),
+    };
+
+    socket.emit("analysis_result", result);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(`Backend running at http://localhost:${PORT}`);
+});
